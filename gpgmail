@@ -42,7 +42,7 @@ from typing import List
 __author__ = "J. Nathanael Philipp"
 __email__ = "nathanael@philipp.land"
 __license__ = "GPLv3"
-__version__ = "0.6.2"
+__version__ = "0.7.1"
 __github__ = "https://github.com/jnphilipp/gpgmail"
 VERSION = (
     f"%(prog)s v{__version__}\n\nReport bugs to {__github__}/issues."
@@ -211,7 +211,12 @@ def protected_headers_mail(mail: Message) -> Message:
         if "Content-Transfer-Encoding" in mail:
             orig_msg["Content-Transfer-Encoding"] = mail["Content-Transfer-Encoding"]
             del mail["Content-Transfer-Encoding"]
-        orig_msg.set_payload(mail.get_payload())
+
+        if mail.is_multipart():
+            for payload in mail.get_payload():
+                orig_msg.attach(payload)
+        else:
+            orig_msg.set_payload(mail.get_payload())
 
         base_msg.attach(pheaders_msg)
         base_msg.attach(orig_msg)
@@ -235,7 +240,7 @@ def sign(mail: Message, key: str, passphrase: str = None, gnupghome: str = None)
     gpg = GPG(gnupghome=gnupghome)
     gpg.encoding = "utf-8"
     signature = gpg.sign(
-        re.sub("\r?\n", "\r\n", pmail.as_string()),
+        re.sub(r"\r?\n", "\r\n", pmail.as_string()),
         keyid=key,
         passphrase=passphrase,
         detach=True,
